@@ -30,7 +30,8 @@ public class PopulateDB {
                         @PathVariable(value = "currenCity") String currentCity,
                         @PathVariable(value = "homeTown") String hometown){
 
-        // TODO : Client side verification of register form data
+        // TODO : Server side verification of register form data
+        // TODO : Make optional field required = false
         try {
             if(Utils.validRegistration()) {
                 User user = new User.Builder()

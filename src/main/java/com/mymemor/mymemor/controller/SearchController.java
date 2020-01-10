@@ -57,7 +57,6 @@ public class SearchController {
 
     @GetMapping({"/search/{q}","/search/"})
     public List getSearchResultViaAjax(@PathVariable(value = "q",required = false) String query){
-        // TODO : Validation of query (It should contain valid username and name}
         try {
             if(StringUtils.isEmpty(query))
                 throw new EmptyQuery("Query can't be empty");
