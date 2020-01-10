@@ -69,4 +69,54 @@ public class User extends Auditable {
     @Setter
     @ManyToMany
     private Set<User> myPeople = new HashSet<>();
+
+    public User(){}
+
+    private User(Builder builder) {
+        this.name = builder.name;
+        this.profilePicURL = builder.profilePicURL;
+        this.schoolName = builder.schoolName;
+        this.currentCity = builder.currentCity;
+        this.hometown = builder.hometown;
+    }
+
+    public static final class Builder {
+        private @NotBlank String name;
+        private @URL @NotBlank String profilePicURL;
+        private String schoolName;
+        private String currentCity;
+        private String hometown;
+
+        public Builder() {
+        }
+
+        public User build() {
+            return new User(this);
+        }
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder profilePicURL(String profilePicURL) {
+            this.profilePicURL = profilePicURL;
+            return this;
+        }
+
+        public Builder schoolName(String schoolName) {
+            this.schoolName = schoolName;
+            return this;
+        }
+
+        public Builder currentCity(String currentCity) {
+            this.currentCity = currentCity;
+            return this;
+        }
+
+        public Builder hometown(String hometown) {
+            this.hometown = hometown;
+            return this;
+        }
+    }
 }

@@ -35,4 +35,40 @@ public class Account extends Auditable {
     @NotNull
     @OneToOne
     private User user;
+
+    private Account(Builder builder) {
+        this.email = builder.email;
+        this.username = builder.username;
+        this.encPassword = builder.encPassword;
+    }
+
+    public Account(){}
+
+    public static final class Builder {
+        private @NotBlank @Email String email;
+        private @NotBlank String username;
+        private @NotBlank String encPassword;
+
+        public Builder() {
+        }
+
+        public Account build() {
+            return new Account(this);
+        }
+
+        public Builder email(String email) {
+            this.email = email;
+            return this;
+        }
+
+        public Builder username(String username) {
+            this.username = username;
+            return this;
+        }
+
+        public Builder encPassword(String encPassword) {
+            this.encPassword = encPassword;
+            return this;
+        }
+    }
 }
