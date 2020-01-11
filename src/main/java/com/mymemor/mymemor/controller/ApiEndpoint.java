@@ -4,20 +4,22 @@ import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.FormResponse;
 import com.mymemor.mymemor.Utils;
 import com.mymemor.mymemor.model.Account;
+import com.mymemor.mymemor.model.BondRequest;
+import com.mymemor.mymemor.model.Memory;
 import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 // TODO : Validation , collegeName
 
@@ -72,17 +74,6 @@ public class ApiEndpoint {
         return form;
     }
 
-    @GetMapping("/cookie")
-    public boolean getCookie(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     @PostMapping("/login")
     public FormResponse loginUser(HttpServletResponse response,@RequestParam("username") @Valid String username,
                                   @RequestParam("password") @Valid String password) {
@@ -124,5 +115,100 @@ public class ApiEndpoint {
         cookie.setMaxAge(0);
         response.addCookie(cookie);
         return "success";
+    }
+
+    @PostMapping("/addmemory")
+    public FormResponse addmemory (HttpServletRequest request,
+                             @RequestParam("topic") @Valid String topic,
+                             @RequestParam("content") @Valid String content,
+                             @RequestParam("data_start") @Valid Date date_start,
+                             @RequestParam("date_end") @Valid Date date_end,
+                             @RequestParam("location") @Valid String location,
+                             @RequestParam("photos") @Valid Set photos) {
+        FormResponse form = new FormResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        form.setStatus("success");
+
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+
+        if(userId == null)
+        {
+            form.setStatus("Error");
+            list.add("username not logged in");
+            error.put("username",list);
+            form.setErrorList(error);
+            // TODO : redirect to login url
+        }
+        else {
+            User user = userRepository.findById(userId).orElseThrow();
+            Memory memory = new Memory();
+            memory.setTopic(topic);
+            memory.setContent(content);
+            memory.setStartDate(date_start);
+            memory.setEndDate(date_end);
+            memory.setLocation(location);
+            memory.setPhotos(photos);
+            user.getMemories().add(memory);
+            userRepository.save(user);
+        }
+        return form;
+    }
+
+    @GetMapping("/mypeople")
+    public Set<User> getMyPeople(HttpServletRequest request)
+    {
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for(Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+
+        if(userId == null)
+        {
+            // TODO : redirect to login url
+        }else{
+            User user = userRepository.findById(userId).orElseThrow();
+            return user.getMyPeople();
+        }
+        return new HashSet<>();
+    }
+
+
+    @PostMapping("/sendrequest")
+    public void sendrequest (HttpServletRequest request,
+                            @RequestParam("sendRequestToUser") @Valid Long sendRequestToUser)
+    {
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+        if(userId == null)
+        {
+            // TODO : redirect to login url
+        }else{
+            User userSent = userRepository.findById(userId).orElseThrow();
+            User userReceived = userRepository.findById(sendRequestToUser).orElseThrow();
+
+            BondRequest bondRequest = new BondRequest();
+            bondRequest.setTo(sendRequestToUser);
+            bondRequest.setFrom(userId);
+
+            userSent.getSentRequests().add(bondRequest);
+            userReceived.getReceivedRequests().add(bondRequest);
+            userRepository.save(userSent);
+            userRepository.save(userReceived);
+        }
     }
 }
