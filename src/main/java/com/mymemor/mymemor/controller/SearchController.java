@@ -115,8 +115,10 @@ public class SearchController {
         }catch (EmptyQuery message ){
             System.out.println(message);
         }
-//        Cookie cookie = new Cookie("username", "Jovan");
-//        String value = cookie.getValue(cookie);
+
+//        Cookie cookie = new Cookie("website", "javapointers");
+
+
         return new ArrayList<>();
     }
 }
