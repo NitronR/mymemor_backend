@@ -1,9 +1,7 @@
 package com.mymemor.mymemor.controller;
 
-import com.mymemor.mymemor.Utils;
+import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.exceptions.EmptyQuery;
-import com.mymemor.mymemor.exceptions.InvalidName;
-import com.mymemor.mymemor.exceptions.InvalidUserName;
 import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.UserRepository;
@@ -41,42 +39,84 @@ public class SearchController {
         return listUser;
     }
 
-    private List getUserIdsByUsername(EntityManager entityManager, String query){
-        // TODO : Optimise query
-        Query q =  entityManager.createNativeQuery("select id from accounts where username LIKE ? ");
+    private List<User> getUserIdsByUsername(EntityManager entityManager, String query,int pageNo){
+        // TODO : Optimise query and Improve get suggestion citeria
+        Query q =  entityManager.createNativeQuery("select user_id from accounts where username LIKE ? LIMIT ?,?");
         q.setParameter(1, "%"+query+"%");
-        return q.getResultList();
+        q.setParameter(2, (pageNo-1) * Constants.MAX_SEARCH_PAGE_SIZE);
+        q.setParameter(3, Constants.MAX_SEARCH_PAGE_SIZE);
+        // TODO : Optimise getUsersByIds
+        return getUsersByIds(q.getResultList());
     }
 
-    private List getUserIdsByName(EntityManager entityManager, String query){
-        // TODO : Optimise query
-        Query q =  entityManager.createNativeQuery("select id from users where name LIKE ? ");
+    private List<User> getUserIdsByName(EntityManager entityManager, String query,int pageNo){
+        // TODO : Optimise query and Improve get suggestion citeria
+        Query q =  entityManager.createNativeQuery("select id from users where name LIKE ? LIMIT ?,?");
         q.setParameter(1, "%"+query+"%");
-        return q.getResultList();
+        q.setParameter(2, (pageNo-1) * Constants.MAX_SEARCH_PAGE_SIZE);
+        q.setParameter(3, Constants.MAX_SEARCH_PAGE_SIZE);
+        // TODO : Optimise getUsersByIds
+        return getUsersByIds(q.getResultList());
     }
 
-    @GetMapping({"/search/{q}","/search/"})
-    public List getSearchResultViaAjax(@PathVariable(value = "q",required = false) String query){
+    private List<User> getUserIdsByUsernameForSuggestions(EntityManager entityManager, String query){
+        // TODO : Optimise query and Improve get suggestion citeria
+        Query q =  entityManager.createNativeQuery("select user_id from accounts where username LIKE ? LIMIT ? ");
+        q.setParameter(1, "%"+query+"%");
+        q.setParameter(2, Constants.MAX_SUGGESTION_LIST_LENGTH);
+        // TODO : Optimise getUsersByIds
+        return getUsersByIds(q.getResultList());
+    }
+
+    private List<User> getUserIdsByNameForSuggestions(EntityManager entityManager, String query){
+        // TODO : Optimise query and Improve get suggestion citeria
+        Query q =  entityManager.createNativeQuery("select id from users where name LIKE ? LIMIT ?");
+        q.setParameter(1, "%"+query+"%");
+        q.setParameter(2, Constants.MAX_SUGGESTION_LIST_LENGTH);
+        // TODO : Optimise getUsersByIds
+        return getUsersByIds(q.getResultList());
+    }
+
+    @GetMapping({"/search/{q}/{pageNo}","/search/{pageNo}"})
+    public List<User> getSearchResult(@PathVariable(value = "q",required = false) String query,
+                                      @PathVariable(value = "pageNo") int pageNo){
         try {
             if(StringUtils.isEmpty(query))
                 throw new EmptyQuery("Query can't be empty");
             else {
                 if (query.startsWith("@")) {
                     String username = query.substring(1);
-                    if(Utils.validateUsername(username)) {
-                        return getUsersByIds(getUserIdsByUsername(entityManager, username));
-                    }else
-                        throw new InvalidUserName("Enter Valid Username");
-                } else {
-                    if(Utils.validateName(query)) {
-                        return getUsersByIds(getUserIdsByName(entityManager, query));
-                    }else
-                        throw new InvalidName("Enter Valid Name");
+                    return getUserIdsByUsername(entityManager, username,pageNo);
+
+                }
+                else {
+                    return getUserIdsByName(entityManager, query,pageNo);
                 }
             }
-        }catch (EmptyQuery | InvalidUserName | InvalidName message ){
+        }catch (EmptyQuery message ){
             System.out.println(message);
         }
+        return new ArrayList<>();
+    }
+
+    @GetMapping({"/suggestion/{q}","/suggestion/"})
+    public List getSearchSuggestions(@PathVariable(value = "q",required = false) String query){
+        try {
+            if(StringUtils.isEmpty(query))
+                throw new EmptyQuery("Query can't be empty");
+            else {
+                if (query.startsWith("@")) {
+                    String username = query.substring(1);
+                    return getUserIdsByUsernameForSuggestions(entityManager, username);
+                } else {
+                    return getUserIdsByNameForSuggestions(entityManager, query);
+                }
+            }
+        }catch (EmptyQuery message ){
+            System.out.println(message);
+        }
+//        Cookie cookie = new Cookie("username", "Jovan");
+//        String value = cookie.getValue(cookie);
         return new ArrayList<>();
     }
 }

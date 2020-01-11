@@ -1,10 +1,18 @@
 package com.mymemor.mymemor;
 
+import java.util.Base64;
+
 public abstract class Utils {
 
-    public static String encryptPassword(String dummy_password) {
-        // TODO : encrpy password logic
-        return dummy_password;
+    public static String encryptPassword(String password) {
+        // TODO : improve encrpt password logic
+        return Base64.getEncoder().encodeToString(password.getBytes());
+    }
+
+    public static String decryptPassword(String encodedPassword) {
+        // TODO : improve decrpt password logic
+        byte[] actualByte = Base64.getDecoder().decode(encodedPassword);
+        return new String(actualByte);
     }
 
     public static boolean validRegistration() {
