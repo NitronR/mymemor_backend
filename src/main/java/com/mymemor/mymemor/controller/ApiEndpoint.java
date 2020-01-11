@@ -1,5 +1,6 @@
 package com.mymemor.mymemor.controller;
 
+import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.FormResponse;
 import com.mymemor.mymemor.Utils;
 import com.mymemor.mymemor.model.Account;
@@ -7,10 +8,11 @@ import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -70,8 +72,19 @@ public class ApiEndpoint {
         return form;
     }
 
+    @GetMapping("/cookie")
+    public boolean getCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @PostMapping("/login")
-    public FormResponse loginUser(@RequestParam("username") @Valid String username,
+    public FormResponse loginUser(HttpServletResponse response,@RequestParam("username") @Valid String username,
                                   @RequestParam("password") @Valid String password) {
         FormResponse form = new FormResponse();
         Map<String, List<String>> error = new HashMap<>();
@@ -82,7 +95,7 @@ public class ApiEndpoint {
         if (account == null) {
             List<String> list = new ArrayList<>();
             form.setStatus("error");
-            list.add("username not exiest");
+            list.add("username not exist");
             error.put("username", list);
             form.setErrorList(error);
         } else {
@@ -93,7 +106,23 @@ public class ApiEndpoint {
                 error.put("password", list);
                 form.setErrorList(error);
             }
+
+            if(error.size() == 0 ){
+                Cookie cookie = new Cookie(Constants.COOKIES_NAME, String.valueOf(account.getUser().getId()));
+                // set the expiration time
+                // 1 hour = 60 seconds x 60 minutes
+                cookie.setMaxAge(60 * 60);
+                response.addCookie(cookie);
+            }
         }
         return form;
+    }
+
+    @GetMapping("/logout")
+    public String logout(HttpServletResponse response){
+        Cookie cookie = new Cookie(Constants.COOKIES_NAME, "");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+        return "success";
     }
 }
