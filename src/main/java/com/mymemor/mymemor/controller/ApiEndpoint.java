@@ -7,16 +7,11 @@ import com.mymemor.mymemor.forms.RegisterForm;
 import com.mymemor.mymemor.model.*;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.BondRepository;
+import com.mymemor.mymemor.repository.MemoryRepository;
 import com.mymemor.mymemor.repository.UserRepository;
-import com.mymemor.mymemor.response.BondRequestResponse;
-import com.mymemor.mymemor.response.FormResponse;
-import com.mymemor.mymemor.response.LoginResponse;
-import com.mymemor.mymemor.response.StringResponse;
+import com.mymemor.mymemor.response.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -248,25 +243,22 @@ public class ApiEndpoint {
                 userId = Long.parseLong(cookie.getValue());
             }
         }
-        if(userId == null)
-        {
+        if (userId == null) {
             response.setStatus("Error");
-            list.add("user not logged in");
-            error.put("username",list);
-            response.setErrorList(error);
-        }else{
+            error.put("username", list);
+            response.setError("user not logged in");
+        } else {
             User loggedUser = userRepository.findById(userId).orElseThrow();
             User userSearched = accountRepository.findByUsername(username).getUser();
             response.setUser(userSearched);
 
-            if(loggedUser.getMyPeople().contains(userSearched)){
+            if (loggedUser.getMyPeople().contains(userSearched)) {
                 response.setBonded(true);
-            }
-            else{
+            } else {
                 BondRequest bondRequest = new BondRequest();
                 bondRequest.setTo(userSearched);
                 bondRequest.setFrom(loggedUser);
-                if(loggedUser.getSentRequests().contains(bondRequest)){
+                if (loggedUser.getSentRequests().contains(bondRequest)) {
                     response.setRequested(true);
                 }
             }
@@ -331,13 +323,11 @@ public class ApiEndpoint {
     }
 
     @PostMapping("/bond-request-action")
-    public StringResponse bondRequestAction (HttpServletRequest request,
-                                             @RequestParam("bond_request_id") @Valid Long bondRequestId,
-                                             @RequestParam("bond_action") @Valid int bondAction)
-    {
+    public StringResponse bondRequestAction(HttpServletRequest request,
+                                            @RequestParam("bond_request_id") @Valid Long bondRequestId,
+                                            @RequestParam("bond_action") @Valid int bondAction) {
         StringResponse response = new StringResponse();
         Map<String, List<String>> error = new HashMap<>();
-        List<String> list = new ArrayList<>();
         response.setStatus("success");
 
         Long userId = null;
@@ -348,15 +338,12 @@ public class ApiEndpoint {
             }
         }
 
-        if(userId == null)
-        {
+        if (userId == null) {
             response.setStatus("Error");
-            list.add("user not logged in");
-            error.put("username",list);
-            response.setErrorList(error);
-        }else{
+            response.setError("user not logged in");
+        } else {
             BondRequest bond = bondRepository.findById(bondRequestId).orElseThrow();
-            if(bondRequestId==1){
+            if (bondRequestId == 1) {
                 User user = userRepository.findById(userId).orElseThrow();
                 user.getMyPeople().add(bond.getTo());
                 userRepository.save(user);

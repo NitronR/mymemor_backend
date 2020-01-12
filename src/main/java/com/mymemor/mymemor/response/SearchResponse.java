@@ -6,7 +6,7 @@ import lombok.Setter;
 
 import java.util.List;
 
-public class SearchResponse extends FormResponse{
+public class SearchResponse extends StringResponse {
     @Getter
     @Setter
     private List<User> user;

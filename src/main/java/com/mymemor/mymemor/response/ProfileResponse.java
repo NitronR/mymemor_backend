@@ -4,7 +4,7 @@ import com.mymemor.mymemor.model.User;
 import lombok.Getter;
 import lombok.Setter;
 
-public class ProfileResponse extends FormResponse {
+public class ProfileResponse extends StringResponse {
 
     @Getter
     @Setter

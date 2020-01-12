@@ -15,8 +15,8 @@ public enum BondRequestStatus {
         return value;
     }
 
-    public static BondRequestStatus fromValue(int value){
-        switch (value){
+    public static BondRequestStatus fromValue(int value) {
+        switch (value) {
             case 1:
                 return BondRequestStatus.ACCEPT;
             case 2:

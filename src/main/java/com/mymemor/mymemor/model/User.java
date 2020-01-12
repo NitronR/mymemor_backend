@@ -62,7 +62,7 @@ public class User extends Auditable {
     @Setter
     @OneToMany(mappedBy = "from", cascade = CascadeType.ALL)
     @JsonIgnore
-    private Set<BondRequest> sentRequests =  new HashSet<>();
+    private Set<BondRequest> sentRequests = new HashSet<>();
 
     @Getter
     @Setter
