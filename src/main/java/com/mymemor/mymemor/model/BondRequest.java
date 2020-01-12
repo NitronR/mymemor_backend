@@ -15,7 +15,7 @@ public class BondRequest extends Auditable {
     @Getter
     @Setter
     @NotNull
-    private BondRequestStatus bondRequestStatus = BondRequestStatus.PENDING;
+    private BondRequestStatus bondRequestStatus = BondRequestStatus.fromValue(2);
 
     @Getter
     @Setter

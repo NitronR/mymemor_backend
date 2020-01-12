@@ -2,10 +2,7 @@ package com.mymemor.mymemor.controller;
 
 import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.Utils;
-import com.mymemor.mymemor.model.Account;
-import com.mymemor.mymemor.model.BondRequest;
-import com.mymemor.mymemor.model.Memory;
-import com.mymemor.mymemor.model.User;
+import com.mymemor.mymemor.model.*;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.BondRepository;
 import com.mymemor.mymemor.repository.UserRepository;
@@ -285,32 +282,35 @@ public class ApiEndpoint {
         return response;
     }
 
-//    @PostMapping("/bond-request-action")
-//    public StringResponse sendrequest (HttpServletRequest request)
-//    {
-//
-//        BondRequestResponse response = new BondRequestResponse();
-//        Map<String, List<String>> error = new HashMap<>();
-//        List<String> list = new ArrayList<>();
-//        response.setStatus("success");
-//
-//        Long userId = null;
-//        Cookie[] cookies = request.getCookies();
-//        for (Cookie cookie : cookies) {
-//            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-//                userId = Long.parseLong(cookie.getValue());
-//            }
-//        }
-//        if(userId == null)
-//        {
-//            response.setStatus("Error");
-//            list.add("user not logged in");
-//            error.put("username",list);
-//            response.setErrorList(error);
-//        }else{
-//            User user = userRepository.findById(userId).orElseThrow();
-//            response.setBondRequests(user.getReceivedRequests());
-//        }
-//        return response;
-//    }
+    @PostMapping("/bond-request-action")
+    public StringResponse bondRequestAction (HttpServletRequest request,
+                                             @RequestParam("bond_request_id") @Valid Long bondRequestId,
+                                             @RequestParam("bond_action") @Valid int bondAction)
+    {
+        StringResponse response = new StringResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        response.setStatus("success");
+
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+
+        if(userId == null)
+        {
+            response.setStatus("Error");
+            list.add("user not logged in");
+            error.put("username",list);
+            response.setErrorList(error);
+        }else{
+            BondRequest bond = bondRepository.findById(bondRequestId).orElseThrow();
+            bond.setBondRequestStatus(BondRequestStatus.fromValue(bondAction));
+            bondRepository.save(bond);
+        }
+        return response;
+    }
 }
