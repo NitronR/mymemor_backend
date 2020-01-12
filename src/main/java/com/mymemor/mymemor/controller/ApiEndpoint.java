@@ -4,17 +4,19 @@ import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.Utils;
 import com.mymemor.mymemor.forms.LoginForm;
 import com.mymemor.mymemor.forms.RegisterForm;
-import com.mymemor.mymemor.model.Account;
-import com.mymemor.mymemor.model.BondRequest;
-import com.mymemor.mymemor.model.Memory;
-import com.mymemor.mymemor.model.User;
+import com.mymemor.mymemor.model.*;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.BondRepository;
-import com.mymemor.mymemor.repository.MemoryRepository;
 import com.mymemor.mymemor.repository.UserRepository;
-import com.mymemor.mymemor.response.*;
+import com.mymemor.mymemor.response.BondRequestResponse;
+import com.mymemor.mymemor.response.FormResponse;
+import com.mymemor.mymemor.response.LoginResponse;
+import com.mymemor.mymemor.response.StringResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -23,7 +25,6 @@ import javax.validation.Valid;
 import java.util.*;
 
 @RestController
-@RequestMapping
 public class ApiEndpoint {
     @Autowired
     private UserRepository userRepository;
@@ -232,11 +233,45 @@ public class ApiEndpoint {
         }
     }
 
-    @PostMapping("/profile/{username}")
-    public void profile(HttpServletRequest request,
-                        @RequestParam("username") @Valid String username) {
+    @PostMapping("/profile")
+    public ProfileResponse profile(HttpServletRequest request,
+                                   @RequestParam("username") @Valid String username) {
+        ProfileResponse response = new ProfileResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        response.setStatus("success");
 
-        // TODO : profile backend
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+        if(userId == null)
+        {
+            response.setStatus("Error");
+            list.add("user not logged in");
+            error.put("username",list);
+            response.setErrorList(error);
+        }else{
+            User loggedUser = userRepository.findById(userId).orElseThrow();
+            User userSearched = accountRepository.findByUsername(username).getUser();
+            response.setUser(userSearched);
+
+            if(loggedUser.getMyPeople().contains(userSearched)){
+                response.setBonded(true);
+            }
+            else{
+                BondRequest bondRequest = new BondRequest();
+                bondRequest.setTo(userSearched);
+                bondRequest.setFrom(loggedUser);
+                if(loggedUser.getSentRequests().contains(bondRequest)){
+                    response.setRequested(true);
+                }
+            }
+        }
+        return response;
     }
 
 
@@ -262,8 +297,8 @@ public class ApiEndpoint {
             User userReceived = accountRepository.findByUsername(sendRequestToUserName).getUser();
 
             BondRequest bondRequest = new BondRequest();
-            bondRequest.setTo(userSent);
-            bondRequest.setFrom(userReceived);
+            bondRequest.setTo(userReceived);
+            bondRequest.setFrom(userSent);
             bondRepository.save(bondRequest);
         }
         return response;
@@ -295,32 +330,40 @@ public class ApiEndpoint {
         return response;
     }
 
-//    @PostMapping("/bond-request-action")
-//    public StringResponse sendrequest (HttpServletRequest request)
-//    {
-//
-//        BondRequestResponse response = new BondRequestResponse();
-//        Map<String, List<String>> error = new HashMap<>();
-//        List<String> list = new ArrayList<>();
-//        response.setStatus("success");
-//
-//        Long userId = null;
-//        Cookie[] cookies = request.getCookies();
-//        for (Cookie cookie : cookies) {
-//            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-//                userId = Long.parseLong(cookie.getValue());
-//            }
-//        }
-//        if(userId == null)
-//        {
-//            response.setStatus("Error");
-//            list.add("user not logged in");
-//            error.put("username",list);
-//            response.setErrorList(error);
-//        }else{
-//            User user = userRepository.findById(userId).orElseThrow();
-//            response.setBondRequests(user.getReceivedRequests());
-//        }
-//        return response;
-//    }
+    @PostMapping("/bond-request-action")
+    public StringResponse bondRequestAction (HttpServletRequest request,
+                                             @RequestParam("bond_request_id") @Valid Long bondRequestId,
+                                             @RequestParam("bond_action") @Valid int bondAction)
+    {
+        StringResponse response = new StringResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        response.setStatus("success");
+
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+
+        if(userId == null)
+        {
+            response.setStatus("Error");
+            list.add("user not logged in");
+            error.put("username",list);
+            response.setErrorList(error);
+        }else{
+            BondRequest bond = bondRepository.findById(bondRequestId).orElseThrow();
+            if(bondRequestId==1){
+                User user = userRepository.findById(userId).orElseThrow();
+                user.getMyPeople().add(bond.getTo());
+                userRepository.save(user);
+            }
+            bond.setBondRequestStatus(BondRequestStatus.fromValue(bondAction));
+            bondRepository.save(bond);
+        }
+        return response;
+    }
 }

@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -78,7 +80,8 @@ public class SearchController {
     }
 
     @GetMapping({"/search/{q}/{pageNo}","/search/{pageNo}"})
-    public SearchResponse getSearchResult(@PathVariable(value = "q",required = false) String query,
+    public SearchResponse getSearchResult(HttpServletRequest request,
+                                          @PathVariable(value = "q",required = false) String query,
                                           @PathVariable(value = "pageNo") int pageNo){
 
         SearchResponse searchResponse = new SearchResponse();
@@ -86,7 +89,20 @@ public class SearchController {
         List<String> list = new ArrayList<>();
         searchResponse.setStatus("success");
 
-        if(StringUtils.isEmpty(query))
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+        if(userId == null){
+            searchResponse.setStatus("Error");
+            list.add("User must be logged in ");
+            error.put("username",list);
+            searchResponse.setErrorList(error);
+        }
+        else if(StringUtils.isEmpty(query))
         {
             searchResponse.setStatus("Error");
             list.add("Query can't be empty");
@@ -107,13 +123,27 @@ public class SearchController {
     }
 
     @GetMapping({"/suggestion/{q}","/suggestion/"})
-    public SearchResponse getSearchSuggestions(@PathVariable(value = "q",required = false) String query){
+    public SearchResponse getSearchSuggestions(HttpServletRequest request,
+                                    @PathVariable(value = "q",required = false) String query){
         SearchResponse searchResponse = new SearchResponse();
         Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         searchResponse.setStatus("success");
 
-        if(StringUtils.isEmpty(query))
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+        if(userId == null){
+            searchResponse.setStatus("Error");
+            list.add("User must be logged in ");
+            error.put("username",list);
+            searchResponse.setErrorList(error);
+        }
+        else if(StringUtils.isEmpty(query))
         {
             searchResponse.setStatus("Error");
             list.add("Query can't be empty");
