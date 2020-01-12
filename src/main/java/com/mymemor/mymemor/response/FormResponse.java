@@ -15,5 +15,5 @@ public class FormResponse {
 
     @Getter
     @Setter
-    private Map<String, List<String>> errorList = new HashMap<>();
+    private Map<String, List<String>> errors = new HashMap<>();
 }

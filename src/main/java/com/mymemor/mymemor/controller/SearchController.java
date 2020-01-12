@@ -91,7 +91,7 @@ public class SearchController {
             searchResponse.setStatus("Error");
             list.add("Query can't be empty");
             error.put("username",list);
-            searchResponse.setErrorList(error);
+            searchResponse.setErrors(error);
         }
         else {
             if (query.startsWith("@")) {
@@ -118,7 +118,7 @@ public class SearchController {
             searchResponse.setStatus("Error");
             list.add("Query can't be empty");
             error.put("username",list);
-            searchResponse.setErrorList(error);
+            searchResponse.setErrors(error);
         }
         else {
             if (query.startsWith("@")) {

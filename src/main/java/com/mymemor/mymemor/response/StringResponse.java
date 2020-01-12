@@ -3,10 +3,6 @@ package com.mymemor.mymemor.response;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 public class StringResponse {
     @Getter
     @Setter
@@ -14,6 +10,6 @@ public class StringResponse {
 
     @Getter
     @Setter
-    private Map<String, List<String>> errorList = new HashMap<>();
+    private String error;
 
 }
