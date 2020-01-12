@@ -21,12 +21,12 @@ public class BondRequest extends Auditable {
     @Setter
     @ManyToOne
     @NotNull
-    private Long from;
+    private User from;
 
     @Getter
     @Setter
     @ManyToOne
     @NotNull
-    private Long to;
+    private User to;
 
 }

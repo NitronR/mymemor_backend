@@ -1,27 +1,17 @@
 package com.mymemor.mymemor.model;
 
-import java.io.Serializable;
-
-import javax.persistence.Column;
-import javax.persistence.EntityListeners;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.MappedSuperclass;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import lombok.Getter;
-import lombok.Setter;
-
+import javax.persistence.*;
+import java.io.Serializable;
 import java.util.Date;
 
 @MappedSuperclass
@@ -41,6 +31,7 @@ abstract class Auditable implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     @Getter
     @Setter
+    @JsonIgnore
     private Date createdAt = new Date();
 
     @LastModifiedDate
@@ -48,5 +39,6 @@ abstract class Auditable implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     @Getter
     @Setter
+    @JsonIgnore
     private Date updatedAt = new Date();
 }

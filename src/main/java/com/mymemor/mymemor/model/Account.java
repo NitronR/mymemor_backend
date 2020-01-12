@@ -1,5 +1,6 @@
 package com.mymemor.mymemor.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,6 +19,7 @@ public class Account extends Auditable {
     @Setter
     @NotBlank
     @Email
+    @JsonIgnore
     private String email;
 
     @Getter
@@ -28,6 +30,7 @@ public class Account extends Auditable {
     @Getter
     @Setter
     @NotBlank
+    @JsonIgnore
     private String encPassword;
 
     @Getter

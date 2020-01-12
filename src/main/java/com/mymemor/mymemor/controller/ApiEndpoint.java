@@ -1,14 +1,18 @@
 package com.mymemor.mymemor.controller;
 
 import com.mymemor.mymemor.Constants;
-import com.mymemor.mymemor.FormResponse;
 import com.mymemor.mymemor.Utils;
 import com.mymemor.mymemor.model.Account;
 import com.mymemor.mymemor.model.BondRequest;
 import com.mymemor.mymemor.model.Memory;
 import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
+import com.mymemor.mymemor.repository.BondRepository;
 import com.mymemor.mymemor.repository.UserRepository;
+import com.mymemor.mymemor.response.BondRequestResponse;
+import com.mymemor.mymemor.response.FormResponse;
+import com.mymemor.mymemor.response.LoginResponse;
+import com.mymemor.mymemor.response.StringResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,14 +25,14 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.util.*;
 
-// TODO : Validation , collegeName
-
 @RestController
 public class ApiEndpoint {
     @Autowired
     private UserRepository userRepository;
     @Autowired
     private AccountRepository accountRepository;
+    @Autowired
+    private BondRepository bondRepository;
 
     @PostMapping("/register")
     public FormResponse registeruser(@RequestParam("name") @Valid String name,
@@ -51,7 +55,7 @@ public class ApiEndpoint {
         {
 
             form.setStatus("Error");
-            list.add("username already exiest");
+            list.add("username already exist");
             error.put("username",list);
             form.setErrorList(error);
         }
@@ -75,30 +79,40 @@ public class ApiEndpoint {
     }
 
     @PostMapping("/login")
-    public FormResponse loginUser(HttpServletResponse response,@RequestParam("username") @Valid String username,
-                                  @RequestParam("password") @Valid String password) {
-        FormResponse form = new FormResponse();
+    public LoginResponse loginUser(HttpServletResponse response, @RequestParam("username_email") @Valid String username_email,
+                                   @RequestParam("password") @Valid String password) {
+        LoginResponse loginResponse = new LoginResponse();
         Map<String, List<String>> error = new HashMap<>();
-        form.setStatus("success");
+        loginResponse.setStatus("success");
 
-        Account account =(Account)accountRepository.findByUsername(username);
+        Account account = null;
+        String username = "";
+
+        if(username_email.contains("@")) {
+            account = accountRepository.findByEmail(username_email);
+            username = account.getUsername();
+        }
+        else{
+            account = accountRepository.findByUsername(username_email);
+            username = username_email;
+        }
 
         if (account == null) {
             List<String> list = new ArrayList<>();
-            form.setStatus("error");
+            loginResponse.setStatus("error");
             list.add("username not exist");
             error.put("username", list);
-            form.setErrorList(error);
+            loginResponse.setErrorList(error);
         } else {
-            account = accountRepository.findByUsername(username);
             if (!account.getEncPassword().equals(Utils.encryptPassword(password))) {
                 List<String> list = new ArrayList<>();
                 list.add("paaword not match");
                 error.put("password", list);
-                form.setErrorList(error);
+                loginResponse.setErrorList(error);
             }
 
             if(error.size() == 0 ){
+                loginResponse.setUsername(username);
                 Cookie cookie = new Cookie(Constants.COOKIES_NAME, String.valueOf(account.getUser().getId()));
                 // set the expiration time
                 // 1 hour = 60 seconds x 60 minutes
@@ -106,18 +120,36 @@ public class ApiEndpoint {
                 response.addCookie(cookie);
             }
         }
-        return form;
+        return loginResponse;
     }
 
     @GetMapping("/logout")
-    public String logout(HttpServletResponse response){
+    public StringResponse logout(HttpServletResponse response){
+        StringResponse stringResponse = new StringResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        stringResponse.setStatus("success");
+
         Cookie cookie = new Cookie(Constants.COOKIES_NAME, "");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
-        return "success";
+
+        return stringResponse;
     }
 
-    @PostMapping("/addmemory")
+    @GetMapping("/memoline")
+    public StringResponse memoline(HttpServletResponse response){
+        StringResponse stringResponse = new StringResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        stringResponse.setStatus("success");
+
+        // TODO : memoline backend
+
+        return stringResponse;
+    }
+
+    @PostMapping("/add-memory")
     public FormResponse addmemory (HttpServletRequest request,
                              @RequestParam("topic") @Valid String topic,
                              @RequestParam("content") @Valid String content,
@@ -141,10 +173,9 @@ public class ApiEndpoint {
         if(userId == null)
         {
             form.setStatus("Error");
-            list.add("username not logged in");
+            list.add("user not logged in");
             error.put("username",list);
             form.setErrorList(error);
-            // TODO : redirect to login url
         }
         else {
             User user = userRepository.findById(userId).orElseThrow();
@@ -161,7 +192,7 @@ public class ApiEndpoint {
         return form;
     }
 
-    @GetMapping("/mypeople")
+    @GetMapping("/my-people")
     public Set<User> getMyPeople(HttpServletRequest request)
     {
         Long userId = null;
@@ -174,19 +205,32 @@ public class ApiEndpoint {
 
         if(userId == null)
         {
-            // TODO : redirect to login url
+            return new HashSet<>();
         }else{
             User user = userRepository.findById(userId).orElseThrow();
             return user.getMyPeople();
         }
-        return new HashSet<>();
+    }
+
+    @PostMapping("/profile/{username}")
+    public void profile(HttpServletRequest request,
+                        @RequestParam("username") @Valid String username)
+    {
+
+        // TODO : profile backend
     }
 
 
-    @PostMapping("/sendrequest")
-    public void sendrequest (HttpServletRequest request,
-                            @RequestParam("sendRequestToUser") @Valid Long sendRequestToUser)
+    @PostMapping("/send-bond-request")
+    public StringResponse sendrequest (HttpServletRequest request,
+                                       @RequestParam("sendRequestToUserName") @Valid String sendRequestToUserName)
     {
+
+        StringResponse response = new StringResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        response.setStatus("success");
+
         Long userId = null;
         Cookie[] cookies = request.getCookies();
         for (Cookie cookie : cookies) {
@@ -196,19 +240,77 @@ public class ApiEndpoint {
         }
         if(userId == null)
         {
-            // TODO : redirect to login url
+            response.setStatus("Error");
+            list.add("user not logged in");
+            error.put("username",list);
+            response.setErrorList(error);
         }else{
             User userSent = userRepository.findById(userId).orElseThrow();
-            User userReceived = userRepository.findById(sendRequestToUser).orElseThrow();
+            User userReceived = accountRepository.findByUsername(sendRequestToUserName).getUser();
 
             BondRequest bondRequest = new BondRequest();
-            bondRequest.setTo(sendRequestToUser);
-            bondRequest.setFrom(userId);
-
-            userSent.getSentRequests().add(bondRequest);
-            userReceived.getReceivedRequests().add(bondRequest);
-            userRepository.save(userSent);
-            userRepository.save(userReceived);
+            bondRequest.setTo(userSent);
+            bondRequest.setFrom(userReceived);
+            bondRepository.save(bondRequest);
         }
+        return response;
     }
+
+    @PostMapping("/bond-requests")
+    public BondRequestResponse sendrequest (HttpServletRequest request)
+    {
+
+        BondRequestResponse response = new BondRequestResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        response.setStatus("success");
+
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+        if(userId == null)
+        {
+            response.setStatus("Error");
+            list.add("user not logged in");
+            error.put("username",list);
+            response.setErrorList(error);
+        }else{
+            User user = userRepository.findById(userId).orElseThrow();
+            response.setBondRequests(user.getReceivedRequests());
+        }
+        return response;
+    }
+
+//    @PostMapping("/bond-request-action")
+//    public StringResponse sendrequest (HttpServletRequest request)
+//    {
+//
+//        BondRequestResponse response = new BondRequestResponse();
+//        Map<String, List<String>> error = new HashMap<>();
+//        List<String> list = new ArrayList<>();
+//        response.setStatus("success");
+//
+//        Long userId = null;
+//        Cookie[] cookies = request.getCookies();
+//        for (Cookie cookie : cookies) {
+//            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+//                userId = Long.parseLong(cookie.getValue());
+//            }
+//        }
+//        if(userId == null)
+//        {
+//            response.setStatus("Error");
+//            list.add("user not logged in");
+//            error.put("username",list);
+//            response.setErrorList(error);
+//        }else{
+//            User user = userRepository.findById(userId).orElseThrow();
+//            response.setBondRequests(user.getReceivedRequests());
+//        }
+//        return response;
+//    }
 }

@@ -1,5 +1,6 @@
 package com.mymemor.mymemor.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.URL;
@@ -48,26 +49,31 @@ public class User extends Auditable {
     @Getter
     @Setter
     @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<Memory> createdMemories = new ArrayList<>();
 
     @Getter
     @Setter
     @ManyToMany(mappedBy = "users")
+    @JsonIgnore
     private List<Memory> memories = new ArrayList<>();
 
     @Getter
     @Setter
-    @OneToMany(mappedBy = "from")
+    @OneToMany(mappedBy = "from", cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<BondRequest> sentRequests = new ArrayList<>();
 
     @Getter
     @Setter
-    @OneToMany(mappedBy = "to")
+    @OneToMany(mappedBy = "to", cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<BondRequest> receivedRequests = new ArrayList<>();
 
     @Getter
     @Setter
     @ManyToMany
+    @JsonIgnore
     private Set<User> myPeople = new HashSet<>();
 
     public User(){}

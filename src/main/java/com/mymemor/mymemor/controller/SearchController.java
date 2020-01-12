@@ -1,15 +1,14 @@
 package com.mymemor.mymemor.controller;
 
 import com.mymemor.mymemor.Constants;
-import com.mymemor.mymemor.exceptions.EmptyQuery;
 import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.UserRepository;
+import com.mymemor.mymemor.response.SearchResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.persistence.EntityManager;
@@ -17,10 +16,11 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
 public class SearchController {
 
     @Autowired
@@ -78,43 +78,56 @@ public class SearchController {
     }
 
     @GetMapping({"/search/{q}/{pageNo}","/search/{pageNo}"})
-    public List<User> getSearchResult(@PathVariable(value = "q",required = false) String query,
-                                      @PathVariable(value = "pageNo") int pageNo){
-        try {
-            if(StringUtils.isEmpty(query))
-                throw new EmptyQuery("Query can't be empty");
-            else {
-                if (query.startsWith("@")) {
-                    String username = query.substring(1);
-                    return getUserIdsByUsername(entityManager, username,pageNo);
+    public SearchResponse getSearchResult(@PathVariable(value = "q",required = false) String query,
+                                          @PathVariable(value = "pageNo") int pageNo){
 
-                }
-                else {
-                    return getUserIdsByName(entityManager, query,pageNo);
-                }
-            }
-        }catch (EmptyQuery message ){
-            System.out.println(message);
+        SearchResponse searchResponse = new SearchResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        searchResponse.setStatus("success");
+
+        if(StringUtils.isEmpty(query))
+        {
+            searchResponse.setStatus("Error");
+            list.add("Query can't be empty");
+            error.put("username",list);
+            searchResponse.setErrorList(error);
         }
-        return new ArrayList<>();
+        else {
+            if (query.startsWith("@")) {
+                String username = query.substring(1);
+                searchResponse.setUser(getUserIdsByUsername(entityManager, username,pageNo));
+
+            }
+            else {
+                searchResponse.setUser(getUserIdsByName(entityManager, query,pageNo));
+            }
+        }
+        return searchResponse;
     }
 
     @GetMapping({"/suggestion/{q}","/suggestion/"})
-    public List getSearchSuggestions(@PathVariable(value = "q",required = false) String query){
-        try {
-            if(StringUtils.isEmpty(query))
-                throw new EmptyQuery("Query can't be empty");
-            else {
-                if (query.startsWith("@")) {
-                    String username = query.substring(1);
-                    return getUserIdsByUsernameForSuggestions(entityManager, username);
-                } else {
-                    return getUserIdsByNameForSuggestions(entityManager, query);
-                }
-            }
-        }catch (EmptyQuery message ){
-            System.out.println(message);
+    public SearchResponse getSearchSuggestions(@PathVariable(value = "q",required = false) String query){
+        SearchResponse searchResponse = new SearchResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        searchResponse.setStatus("success");
+
+        if(StringUtils.isEmpty(query))
+        {
+            searchResponse.setStatus("Error");
+            list.add("Query can't be empty");
+            error.put("username",list);
+            searchResponse.setErrorList(error);
         }
-        return new ArrayList<>();
+        else {
+            if (query.startsWith("@")) {
+                String username = query.substring(1);
+                searchResponse.setUser(getUserIdsByUsernameForSuggestions(entityManager, username));
+            } else {
+                searchResponse.setUser(getUserIdsByNameForSuggestions(entityManager, query));
+            }
+        }
+        return searchResponse;
     }
 }
