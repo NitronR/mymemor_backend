@@ -62,13 +62,13 @@ public class User extends Auditable {
     @Setter
     @OneToMany(mappedBy = "from", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<BondRequest> sentRequests = new ArrayList<>();
+    private Set<BondRequest> sentRequests =  new HashSet<>();
 
     @Getter
     @Setter
     @OneToMany(mappedBy = "to", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<BondRequest> receivedRequests = new ArrayList<>();
+    private Set<BondRequest> receivedRequests = new HashSet<>();
 
     @Getter
     @Setter

@@ -4,10 +4,10 @@ import com.mymemor.mymemor.model.BondRequest;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
+import java.util.Set;
 
 public class BondRequestResponse extends StringResponse {
     @Getter
     @Setter
-    private List<BondRequest> bondRequests;
+    private Set<BondRequest> bondRequests;
 }

@@ -6,10 +6,7 @@ import com.mymemor.mymemor.model.*;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.BondRepository;
 import com.mymemor.mymemor.repository.UserRepository;
-import com.mymemor.mymemor.response.BondRequestResponse;
-import com.mymemor.mymemor.response.FormResponse;
-import com.mymemor.mymemor.response.LoginResponse;
-import com.mymemor.mymemor.response.StringResponse;
+import com.mymemor.mymemor.response.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -209,12 +206,46 @@ public class ApiEndpoint {
         }
     }
 
-    @PostMapping("/profile/{username}")
-    public void profile(HttpServletRequest request,
-                        @RequestParam("username") @Valid String username)
+    @PostMapping("/profile")
+    public ProfileResponse profile(HttpServletRequest request,
+                                   @RequestParam("username") @Valid String username)
     {
+        ProfileResponse response = new ProfileResponse();
+        Map<String, List<String>> error = new HashMap<>();
+        List<String> list = new ArrayList<>();
+        response.setStatus("success");
 
-        // TODO : profile backend
+        Long userId = null;
+        Cookie[] cookies = request.getCookies();
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
+                userId = Long.parseLong(cookie.getValue());
+            }
+        }
+        if(userId == null)
+        {
+            response.setStatus("Error");
+            list.add("user not logged in");
+            error.put("username",list);
+            response.setErrorList(error);
+        }else{
+            User loggedUser = userRepository.findById(userId).orElseThrow();
+            User userSearched = accountRepository.findByUsername(username).getUser();
+            response.setUser(userSearched);
+
+            if(loggedUser.getMyPeople().contains(userSearched)){
+                response.setBonded(true);
+            }
+            else{
+                BondRequest bondRequest = new BondRequest();
+                bondRequest.setTo(userSearched);
+                bondRequest.setFrom(loggedUser);
+                if(loggedUser.getSentRequests().contains(bondRequest)){
+                    response.setRequested(true);
+                }
+            }
+        }
+        return response;
     }
 
 
@@ -246,8 +277,8 @@ public class ApiEndpoint {
             User userReceived = accountRepository.findByUsername(sendRequestToUserName).getUser();
 
             BondRequest bondRequest = new BondRequest();
-            bondRequest.setTo(userSent);
-            bondRequest.setFrom(userReceived);
+            bondRequest.setTo(userReceived);
+            bondRequest.setFrom(userSent);
             bondRepository.save(bondRequest);
         }
         return response;
@@ -308,6 +339,11 @@ public class ApiEndpoint {
             response.setErrorList(error);
         }else{
             BondRequest bond = bondRepository.findById(bondRequestId).orElseThrow();
+            if(bondRequestId==1){
+                User user = userRepository.findById(userId).orElseThrow();
+                user.getMyPeople().add(bond.getTo());
+                userRepository.save(user);
+            }
             bond.setBondRequestStatus(BondRequestStatus.fromValue(bondAction));
             bondRepository.save(bond);
         }
