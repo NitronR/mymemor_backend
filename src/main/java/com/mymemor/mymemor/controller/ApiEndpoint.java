@@ -2,6 +2,7 @@ package com.mymemor.mymemor.controller;
 
 import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.Utils;
+import com.mymemor.mymemor.forms.AddMemoryForm;
 import com.mymemor.mymemor.forms.LoginForm;
 import com.mymemor.mymemor.forms.RegisterForm;
 import com.mymemor.mymemor.model.*;
@@ -20,6 +21,7 @@ import javax.validation.Valid;
 import java.util.*;
 
 @RestController
+@RequestMapping("/api")
 public class ApiEndpoint {
     @Autowired
     private UserRepository userRepository;
@@ -110,9 +112,9 @@ public class ApiEndpoint {
     }
 
     @GetMapping("/memoline/{sortby}")
-    public MymemoResponse memoline(HttpServletRequest request, @PathVariable(value = "sortby") Optional<String> sortby) {
-        MymemoResponse myMemoResponse = new MymemoResponse();
-        myMemoResponse.setStatus("success");
+    public MemolineResponse memoline(HttpServletRequest request, @PathVariable(value = "sortby") Optional<String> sortby) {
+        MemolineResponse memolineResponse = new MemolineResponse();
+        memolineResponse.setStatus("success");
         List<Memory> memoline = new ArrayList<>();
         List<Memory> memories = new ArrayList<>();
 
@@ -123,16 +125,15 @@ public class ApiEndpoint {
 
         try {
             if (type.equals("create_time")) {
-
-                memories.addAll(memoryRepo.findAllByOrderByCreatedAtAsc());
+                memories.addAll(memoryRepo.findAllByOrderByCreatedAtDesc());
 
             } else {
-                memories.addAll(memoryRepo.findAllByOrderByStartDateAsc());
+                memories.addAll(memoryRepo.findAllByOrderByStartDateDesc());
             }
         } catch (Exception e) {
-            myMemoResponse.setStatus("error");
-            myMemoResponse.setError("not found memory");
-            return myMemoResponse;
+            memolineResponse.setStatus("error");
+            memolineResponse.setError("not found memory");
+            return memolineResponse;
         }
 
         // session user
@@ -146,8 +147,8 @@ public class ApiEndpoint {
                 memoline.add(memory);
             }
         }
-        myMemoResponse.setMemories(memoline);
-        return myMemoResponse;
+        memolineResponse.setMemories(memoline);
+        return memolineResponse;
     }
 
     @GetMapping("/logout")
@@ -176,13 +177,7 @@ public class ApiEndpoint {
     }
 
     @PostMapping("/add-memory")
-    public FormResponse addmemory(HttpServletRequest request,
-                                  @RequestParam("topic") @Valid String topic,
-                                  @RequestParam("content") @Valid String content,
-                                  @RequestParam("data_start") @Valid Date date_start,
-                                  @RequestParam("date_end") @Valid Date date_end,
-                                  @RequestParam("location") @Valid String location,
-                                  @RequestParam("photos") @Valid Set photos) {
+    public FormResponse addmemory(HttpServletRequest request, @RequestBody @Valid AddMemoryForm addMemoryForm) {
         FormResponse form = new FormResponse();
         Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
@@ -198,51 +193,48 @@ public class ApiEndpoint {
         } else {
             User user = userRepository.findById(userId).orElseThrow();
             Memory memory = new Memory();
-            memory.setTopic(topic);
-            memory.setContent(content);
-            memory.setStartDate(date_start);
-            memory.setEndDate(date_end);
-            memory.setLocation(location);
-            memory.setPhotos(photos);
-            user.getMemories().add(memory);
+            memory.setTopic(addMemoryForm.topic);
+            memory.setContent(addMemoryForm.content);
+            memory.setStartDate(addMemoryForm.date_start);
+            memory.setEndDate(addMemoryForm.date_end);
+            memory.setLocation(addMemoryForm.location);
+            memory.setPhotos(addMemoryForm.photos);
+            memory.setCreator(user);
+            memory.getUsers().add(user);
+
+            user.getCreatedMemories().add(memory);
+
             userRepository.save(user);
         }
         return form;
     }
 
     @GetMapping("/my-people")
-    public Set<User> getMyPeople(HttpServletRequest request) {
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
+    public MyPeopleResponse getMyPeople(HttpServletRequest request) {
+        MyPeopleResponse myPeopleResponse = new MyPeopleResponse();
+        Long userId = getUserId(request);
 
         if (userId == null) {
-            return new HashSet<>();
+            myPeopleResponse.setError("User not logged in.");
         } else {
             User user = userRepository.findById(userId).orElseThrow();
-            return user.getMyPeople();
+            myPeopleResponse.setPeople(user.getMyPeople());
         }
+
+        return myPeopleResponse;
     }
 
-    @PostMapping("/profile")
+    @GetMapping("/profile/{username}")
     public ProfileResponse profile(HttpServletRequest request,
-                                   @RequestParam("username") @Valid String username) {
+                                   @PathVariable("username") @Valid String username) {
         ProfileResponse response = new ProfileResponse();
         Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         response.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
+        Long userId = getUserId(request);
+        System.out.println(userId);
+
         if (userId == null) {
             response.setStatus("Error");
             error.put("username", list);

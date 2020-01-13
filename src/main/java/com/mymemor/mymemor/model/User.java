@@ -1,6 +1,7 @@
 package com.mymemor.mymemor.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.URL;
@@ -32,6 +33,7 @@ public class User extends Auditable {
     @Setter
     @URL
     @NotBlank
+    @JsonProperty("profile_pic_url")
     private String profilePicURL;
 
     @Getter

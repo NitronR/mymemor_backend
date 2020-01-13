@@ -21,7 +21,7 @@ public class PopulateDB {
     @GetMapping("/add-user")
     public void addDummyUser() {
         accountRepository.deleteAll();
-        for(int i=0;i<30;i++) {
+        for (int i = 0; i < 3; i++) {
             User luffy = new User();
 
             luffy.setName("Monkey D Luffy"+i);
@@ -33,7 +33,7 @@ public class PopulateDB {
             Account dummy = new Account();
             dummy.setEmail("xyz@gmail.com"+i);
             dummy.setUsername("dummy"+i);
-            dummy.setEncPassword(Utils.encryptPassword("Dummy Password"+i));
+            dummy.setEncPassword(Utils.encryptPassword("dummypass" + i));
 
 
             luffy.setAccount(dummy);
