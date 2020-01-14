@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 public class StringResponse {
+    // TODO Use Http status instead
     @Getter
     @Setter
     private String status;

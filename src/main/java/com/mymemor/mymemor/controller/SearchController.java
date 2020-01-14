@@ -1,14 +1,17 @@
 package com.mymemor.mymemor.controller;
 
 import com.mymemor.mymemor.Constants;
+import com.mymemor.mymemor.model.SearchResult;
 import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.UserRepository;
 import com.mymemor.mymemor.response.SearchResponse;
+import com.mymemor.mymemor.service.SessionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.persistence.EntityManager;
@@ -18,97 +21,87 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
+@RequestMapping("/api")
 public class SearchController {
-
     @Autowired
     private UserRepository userRepository;
     @Autowired
     private AccountRepository accountRepository;
     @PersistenceContext
     private EntityManager entityManager;
+    @Autowired
+    private SessionService sessionService;
 
-    private List<User> getUsersByIds(List ids) {
-        List<User> listUser = new ArrayList<>();
+    private List<SearchResult> getSearchResultsByIds(List ids) {
+        List<SearchResult> searchResults = new ArrayList<>();
         for (Object id : ids) {
             User user = userRepository.findById(((BigInteger) id).longValue()).orElseThrow();
-            listUser.add(user);
+            searchResults.add(new SearchResult(user));
         }
-        return listUser;
+        return searchResults;
     }
 
-    private List<User> getUserIdsByUsername(EntityManager entityManager, String query, int pageNo) {
+    private List<SearchResult> searchByUsername(EntityManager entityManager, String query, int pageNo) {
         // TODO : Optimise query and Improve get suggestion citeria
         Query q = entityManager.createNativeQuery("select user_id from accounts where username LIKE ? LIMIT ?,?");
         q.setParameter(1, "%" + query + "%");
         q.setParameter(2, (pageNo - 1) * Constants.MAX_SEARCH_PAGE_SIZE);
         q.setParameter(3, Constants.MAX_SEARCH_PAGE_SIZE);
-        // TODO : Optimise getUsersByIds
-        return getUsersByIds(q.getResultList());
+        // TODO : Optimise getSearchResultsByIds
+        return getSearchResultsByIds(q.getResultList());
     }
 
-    private List<User> getUserIdsByName(EntityManager entityManager, String query, int pageNo) {
+    private List<SearchResult> getUserIdsByName(EntityManager entityManager, String query, int pageNo) {
         // TODO : Optimise query and Improve get suggestion citeria
         Query q = entityManager.createNativeQuery("select id from users where name LIKE ? LIMIT ?,?");
         q.setParameter(1, "%" + query + "%");
         q.setParameter(2, (pageNo - 1) * Constants.MAX_SEARCH_PAGE_SIZE);
         q.setParameter(3, Constants.MAX_SEARCH_PAGE_SIZE);
-        // TODO : Optimise getUsersByIds
-        return getUsersByIds(q.getResultList());
+        // TODO : Optimise getSearchResultsByIds
+        return getSearchResultsByIds(q.getResultList());
     }
 
-    private List<User> getUserIdsByUsernameForSuggestions(EntityManager entityManager, String query) {
+    private List<SearchResult> searchByUsernameForSuggestions(EntityManager entityManager, String query) {
         // TODO : Optimise query and Improve get suggestion citeria
         Query q = entityManager.createNativeQuery("select user_id from accounts where username LIKE ? LIMIT ? ");
         q.setParameter(1, "%" + query + "%");
         q.setParameter(2, Constants.MAX_SUGGESTION_LIST_LENGTH);
-        // TODO : Optimise getUsersByIds
-        return getUsersByIds(q.getResultList());
+        // TODO : Optimise getSearchResultsByIds
+        return getSearchResultsByIds(q.getResultList());
     }
 
-    private List<User> getUserIdsByNameForSuggestions(EntityManager entityManager, String query) {
+    private List<SearchResult> searchByNameForSuggestions(EntityManager entityManager, String query) {
         // TODO : Optimise query and Improve get suggestion citeria
-        Query q = entityManager.createNativeQuery("select id from users where name LIKE ? LIMIT ?");
+        Query q = entityManager.createNativeQuery("select id sender users where name LIKE ? LIMIT ?");
         q.setParameter(1, "%" + query + "%");
         q.setParameter(2, Constants.MAX_SUGGESTION_LIST_LENGTH);
-        // TODO : Optimise getUsersByIds
-        return getUsersByIds(q.getResultList());
+        // TODO : Optimise getSearchResultsByIds
+        return getSearchResultsByIds(q.getResultList());
     }
 
-    @GetMapping({"/search/{q}/{pageNo}", "/search/{pageNo}"})
+    @GetMapping({"/search/{q}/{pageNo}"})
     public SearchResponse getSearchResult(HttpServletRequest request,
-                                          @PathVariable(value = "q", required = false) String query,
+                                          @PathVariable(value = "q") String query,
                                           @PathVariable(value = "pageNo") int pageNo) {
-
         SearchResponse searchResponse = new SearchResponse();
         searchResponse.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
-        if (userId == null) {
-            searchResponse.setStatus("Error");
-            searchResponse.setError("User must be logged in ");
-        } else if (StringUtils.isEmpty(query)) {
-            searchResponse.setStatus("Error");
+        if (StringUtils.isEmpty(query)) {
+            searchResponse.setStatus("error");
             searchResponse.setError("Query can't be empty");
         } else {
             if (query.startsWith("@")) {
                 String username = query.substring(1);
-                searchResponse.setUser(getUserIdsByUsername(entityManager, username, pageNo));
+                searchResponse.setSearchResults(searchByUsername(entityManager, username, pageNo));
 
             } else {
-                searchResponse.setUser(getUserIdsByName(entityManager, query, pageNo));
+                searchResponse.setSearchResults(getUserIdsByName(entityManager, query, pageNo));
             }
         }
+        // TODO include pagination info
         return searchResponse;
     }
 
@@ -116,7 +109,6 @@ public class SearchController {
     public SearchResponse getSearchSuggestions(HttpServletRequest request,
                                                @PathVariable(value = "q", required = false) String query) {
         SearchResponse searchResponse = new SearchResponse();
-        Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         searchResponse.setStatus("success");
 
@@ -128,18 +120,17 @@ public class SearchController {
             }
         }
         if (userId == null) {
-            searchResponse.setStatus("Error");
-            error.put("username", list);
+            searchResponse.setStatus("error");
             searchResponse.setError("User must be logged in ");
         } else if (StringUtils.isEmpty(query)) {
-            searchResponse.setStatus("Error");
+            searchResponse.setStatus("error");
             searchResponse.setError("Query can't be empty");
         } else {
             if (query.startsWith("@")) {
                 String username = query.substring(1);
-                searchResponse.setUser(getUserIdsByUsernameForSuggestions(entityManager, username));
+                searchResponse.setSearchResults(searchByUsernameForSuggestions(entityManager, username));
             } else {
-                searchResponse.setUser(getUserIdsByNameForSuggestions(entityManager, query));
+                searchResponse.setSearchResults(searchByNameForSuggestions(entityManager, query));
             }
         }
         return searchResponse;

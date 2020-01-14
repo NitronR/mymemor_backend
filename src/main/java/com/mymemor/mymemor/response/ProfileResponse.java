@@ -12,9 +12,13 @@ public class ProfileResponse extends StringResponse {
 
     @Getter
     @Setter
-    boolean isBonded = false;
+    private boolean isBonded = false;
 
     @Getter
     @Setter
-    boolean isRequested = false;
+    private boolean isRequested = false;
+
+    @Getter
+    @Setter
+    private boolean some = true;
 }

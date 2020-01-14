@@ -18,6 +18,7 @@ public class PopulateDB {
     @Autowired
     private AccountRepository accountRepository;
 
+    // TODO accept parameters and add user
     @GetMapping("/add-user")
     public void addDummyUser() {
         accountRepository.deleteAll();
@@ -25,7 +26,7 @@ public class PopulateDB {
             User luffy = new User();
 
             luffy.setName("Monkey D Luffy"+i);
-            luffy.setProfilePicURL("https://i.imgur.com/kB7StJm.png");
+            luffy.setProfilePicURL("https://i.pinimg.com/originals/90/a7/f6/90a7f67864acea71fb5ffed6aa6298cb.jpg");
             luffy.setSchoolName("xyxzz"+i);
             luffy.setCurrentCity("Kolkata"+i);
             luffy.setHometown("syzff"+i);
@@ -42,5 +43,7 @@ public class PopulateDB {
             userRepository.save(luffy);
         }
     }
+
+    // TODO populate sender JSON file
 }
 

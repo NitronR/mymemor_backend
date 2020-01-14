@@ -7,6 +7,7 @@ import java.util.Set;
 public class AddMemoryForm {
     @NotBlank
     public String topic;
+    @NotBlank
     public String content;
     public Date date_start;
     public Date date_end;

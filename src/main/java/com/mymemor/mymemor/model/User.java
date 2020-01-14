@@ -38,15 +38,22 @@ public class User extends Auditable {
 
     @Getter
     @Setter
+    @JsonProperty("school")
     private String schoolName;
 
     @Getter
     @Setter
+    @JsonProperty("current_city")
     private String currentCity;
 
     @Getter
     @Setter
     private String hometown;
+
+    @Getter
+    @Setter
+    @JsonProperty("college")
+    private String collegeName;
 
     @Getter
     @Setter
@@ -62,21 +69,25 @@ public class User extends Auditable {
 
     @Getter
     @Setter
-    @OneToMany(mappedBy = "from", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<BondRequest> sentRequests = new HashSet<>();
 
     @Getter
     @Setter
-    @OneToMany(mappedBy = "to", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "receiver", cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<BondRequest> receivedRequests = new HashSet<>();
 
     @Getter
     @Setter
-    @ManyToMany
+    @ManyToMany(cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<User> myPeople = new HashSet<>();
+
+    public String getUsername() {
+        return getAccount().getUsername();
+    }
 
     public User(){}
 
