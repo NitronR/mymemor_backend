@@ -1,7 +1,10 @@
 package com.mymemor.mymemor.controller;
 
-import com.mymemor.mymemor.Constants;
 import com.mymemor.mymemor.Utils;
+import com.mymemor.mymemor.exceptions.EntityDoesNotExist;
+import com.mymemor.mymemor.exceptions.InvalidBondActionException;
+import com.mymemor.mymemor.exceptions.NotAuthenticatedException;
+import com.mymemor.mymemor.forms.AddMemoryForm;
 import com.mymemor.mymemor.forms.LoginForm;
 import com.mymemor.mymemor.forms.RegisterForm;
 import com.mymemor.mymemor.model.*;
@@ -10,16 +13,20 @@ import com.mymemor.mymemor.repository.BondRepository;
 import com.mymemor.mymemor.repository.MemoryRepository;
 import com.mymemor.mymemor.repository.UserRepository;
 import com.mymemor.mymemor.response.*;
+import com.mymemor.mymemor.service.SessionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 import java.util.*;
 
 @RestController
+@RequestMapping("/api")
 public class ApiEndpoint {
     @Autowired
     private UserRepository userRepository;
@@ -29,20 +36,23 @@ public class ApiEndpoint {
     private BondRepository bondRepository;
     @Autowired
     private MemoryRepository memoryRepo;
+    @Autowired
+    private SessionService sessionService;
+
+    Logger logger = LoggerFactory.getLogger(ApiEndpoint.class);
 
     @PostMapping("/register")
     public FormResponse registeruser(@Valid @RequestBody RegisterForm regForm) {
-
         FormResponse form = new FormResponse();
         Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         form.setStatus("success");
         Account account = accountRepository.findByUsername(regForm.username);
 
+        // TODO email unique validation
         if (account != null) {
-
-            form.setStatus("Error");
-            list.add("username already exist");
+            form.setStatus("error");
+            list.add("Username already exists.");
             error.put("username", list);
             form.setErrors(error);
         } else {
@@ -54,18 +64,21 @@ public class ApiEndpoint {
 
             user.setName(regForm.name);
             user.setSchoolName(regForm.schoolName);
+            user.setCollegeName(regForm.collegeName);
             user.setCurrentCity(regForm.currentCity);
             user.setProfilePicURL(regForm.profilePicURL);
-            user.setHometown(regForm.homeTown);
+            user.setHometown(regForm.hometown);
             user.setAccount(account);
             account.setUser(user);
             userRepository.save(user);
+
+            logger.info("New user registered username: {}.", regForm.username);
         }
         return form;
     }
 
     @PostMapping("/login")
-    public LoginResponse loginUser(HttpServletResponse response, @Valid @RequestBody LoginForm loginForm) {
+    public LoginResponse loginUser(HttpServletResponse response, @Valid @RequestBody LoginForm loginForm, HttpSession httpSession) {
         LoginResponse loginResponse = new LoginResponse();
         Map<String, List<String>> error = new HashMap<>();
         loginResponse.setStatus("success");
@@ -97,11 +110,11 @@ public class ApiEndpoint {
 
             if (error.size() == 0) {
                 loginResponse.setUsername(username);
-                Cookie cookie = new Cookie(Constants.COOKIES_NAME, String.valueOf(account.getUser().getId()));
-                // set the expiration time
-                // 1 hour = 60 seconds x 60 minutes
-                cookie.setMaxAge(60 * 60);
-                response.addCookie(cookie);
+
+                // add user_id to session
+                httpSession.setAttribute("user_id", account.getUser().getId());
+
+                logger.info("User logged in, username/email: {}.", loginForm.username_email);
             } else {
                 loginResponse.setStatus("error");
             }
@@ -110,9 +123,9 @@ public class ApiEndpoint {
     }
 
     @GetMapping("/memoline/{sortby}")
-    public MymemoResponse memoline(HttpServletRequest request, @PathVariable(value = "sortby") Optional<String> sortby) {
-        MymemoResponse myMemoResponse = new MymemoResponse();
-        myMemoResponse.setStatus("success");
+    public MemolineResponse memoline(HttpSession session, @PathVariable(value = "sortby") Optional<String> sortby, HttpSession httpSession) throws NotAuthenticatedException, EntityDoesNotExist {
+        MemolineResponse memolineResponse = new MemolineResponse();
+        memolineResponse.setStatus("success");
         List<Memory> memoline = new ArrayList<>();
         List<Memory> memories = new ArrayList<>();
 
@@ -123,21 +136,18 @@ public class ApiEndpoint {
 
         try {
             if (type.equals("create_time")) {
-
-                memories.addAll(memoryRepo.findAllByOrderByCreatedAtAsc());
+                memories.addAll(memoryRepo.findAllByOrderByCreatedAtDesc());
 
             } else {
-                memories.addAll(memoryRepo.findAllByOrderByStartDateAsc());
+                memories.addAll(memoryRepo.findAllByOrderByStartDateDesc());
             }
         } catch (Exception e) {
-            myMemoResponse.setStatus("error");
-            myMemoResponse.setError("not found memory");
-            return myMemoResponse;
+            memolineResponse.setStatus("error");
+            memolineResponse.setError("not found memory");
+            return memolineResponse;
         }
 
-        // session user
-        Long userId = getUserId(request);
-        User sessionUser = userRepository.findById(userId).orElseThrow();
+        User sessionUser = sessionService.getSessionUser(session);
 
         // TODO improve
         for (Memory memory : memories) {
@@ -146,211 +156,156 @@ public class ApiEndpoint {
                 memoline.add(memory);
             }
         }
-        myMemoResponse.setMemories(memoline);
-        return myMemoResponse;
+        memolineResponse.setMemories(memoline);
+
+        logger.info("Memoline served receiver @{}.", sessionUser.getUsername());
+
+        return memolineResponse;
     }
 
     @GetMapping("/logout")
-    public StringResponse logout(HttpServletResponse response) {
+    public StringResponse logout(HttpSession httpSession) {
         StringResponse stringResponse = new StringResponse();
-        Map<String, List<String>> error = new HashMap<>();
-        List<String> list = new ArrayList<>();
         stringResponse.setStatus("success");
 
-        Cookie cookie = new Cookie(Constants.COOKIES_NAME, "");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        httpSession.removeAttribute("user_id");
 
         return stringResponse;
     }
 
-    private Long getUserId(HttpServletRequest request) {
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
-        return userId;
-    }
-
     @PostMapping("/add-memory")
-    public FormResponse addmemory(HttpServletRequest request,
-                                  @RequestParam("topic") @Valid String topic,
-                                  @RequestParam("content") @Valid String content,
-                                  @RequestParam("data_start") @Valid Date date_start,
-                                  @RequestParam("date_end") @Valid Date date_end,
-                                  @RequestParam("location") @Valid String location,
-                                  @RequestParam("photos") @Valid Set photos) {
+    public FormResponse addMemory(HttpSession session, @RequestBody @Valid AddMemoryForm addMemoryForm) throws NotAuthenticatedException, EntityDoesNotExist {
         FormResponse form = new FormResponse();
         Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         form.setStatus("success");
 
-        Long userId = getUserId(request);
+        User user = sessionService.getSessionUser(session);
 
-        if (userId == null) {
-            form.setStatus("Error");
-            list.add("user not logged in");
-            error.put("username", list);
-            form.setErrors(error);
-        } else {
-            User user = userRepository.findById(userId).orElseThrow();
-            Memory memory = new Memory();
-            memory.setTopic(topic);
-            memory.setContent(content);
-            memory.setStartDate(date_start);
-            memory.setEndDate(date_end);
-            memory.setLocation(location);
-            memory.setPhotos(photos);
-            user.getMemories().add(memory);
-            userRepository.save(user);
-        }
+        Memory memory = new Memory();
+        memory.setTopic(addMemoryForm.topic);
+        memory.setContent(addMemoryForm.content);
+        memory.setStartDate(addMemoryForm.date_start);
+        memory.setEndDate(addMemoryForm.date_end);
+        memory.setLocation(addMemoryForm.location);
+        memory.setPhotos(addMemoryForm.photos);
+        memory.setCreator(user);
+        memory.getUsers().add(user);
+
+        user.getCreatedMemories().add(memory);
+
+        userRepository.save(user);
         return form;
     }
 
     @GetMapping("/my-people")
-    public Set<User> getMyPeople(HttpServletRequest request) {
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
+    public MyPeopleResponse getMyPeople(HttpSession session) throws NotAuthenticatedException, EntityDoesNotExist {
+        MyPeopleResponse myPeopleResponse = new MyPeopleResponse();
+        User user = sessionService.getSessionUser(session);
 
-        if (userId == null) {
-            return new HashSet<>();
-        } else {
-            User user = userRepository.findById(userId).orElseThrow();
-            return user.getMyPeople();
-        }
+        myPeopleResponse.setPeople(user.getMyPeople());
+
+        return myPeopleResponse;
     }
 
-    @PostMapping("/profile")
-    public ProfileResponse profile(HttpServletRequest request,
-                                   @RequestParam("username") @Valid String username) {
+    @GetMapping("/profile/{username}")
+    public ProfileResponse profile(HttpSession session,
+                                   @PathVariable("username") @Valid String username) throws NotAuthenticatedException, EntityDoesNotExist {
         ProfileResponse response = new ProfileResponse();
-        Map<String, List<String>> error = new HashMap<>();
-        List<String> list = new ArrayList<>();
         response.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
-        if (userId == null) {
-            response.setStatus("Error");
-            error.put("username", list);
-            response.setError("user not logged in");
-        } else {
-            User loggedUser = userRepository.findById(userId).orElseThrow();
-            User userSearched = accountRepository.findByUsername(username).getUser();
-            response.setUser(userSearched);
+        User sessionUser = sessionService.getSessionUser(session);
+        User userSearched = accountRepository.findByUsername(username).getUser();
+        response.setUser(userSearched);
 
-            if (loggedUser.getMyPeople().contains(userSearched)) {
-                response.setBonded(true);
-            } else {
-                BondRequest bondRequest = new BondRequest();
-                bondRequest.setTo(userSearched);
-                bondRequest.setFrom(loggedUser);
-                if (loggedUser.getSentRequests().contains(bondRequest)) {
-                    response.setRequested(true);
-                }
-            }
+        if (sessionUser.getMyPeople().contains(userSearched)) {
+            response.setBonded(true);
+        } else {
+            // TODO send info receiver indicate the profile user has sent a request receiver current user
+            // is requested is symmetric for now
+            response.setRequested(bondRepository.existsBySenderAndReceiver(sessionUser, userSearched) || bondRepository.existsBySenderAndReceiver(userSearched, sessionUser));
         }
+
+        logger.info("Profile of @{} served to @{}.", username, sessionUser.getUsername());
+
         return response;
     }
 
 
     @PostMapping("/send-bond-request")
-    public StringResponse sendrequest(HttpServletRequest request,
-                                      @RequestParam("sendRequestToUserName") @Valid String sendRequestToUserName) {
-
+    public StringResponse sendBondRequest(HttpSession session,
+                                          @RequestParam("username") @Valid String username) throws NotAuthenticatedException, EntityDoesNotExist {
         StringResponse response = new StringResponse();
         response.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
-        if (userId == null) {
-            response.setStatus("Error");
-            response.setError("user not logged in");
-        } else {
-            User userSent = userRepository.findById(userId).orElseThrow();
-            User userReceived = accountRepository.findByUsername(sendRequestToUserName).getUser();
+        // TODO validate if already requested, already bonded
 
-            BondRequest bondRequest = new BondRequest();
-            bondRequest.setTo(userReceived);
-            bondRequest.setFrom(userSent);
-            bondRepository.save(bondRequest);
-        }
+        User sender = sessionService.getSessionUser(session);
+        User receiver = accountRepository.findByUsername(username).getUser();
+
+        BondRequest bondRequest = new BondRequest();
+        bondRequest.setSender(sender);
+        bondRequest.setReceiver(receiver);
+        bondRepository.save(bondRequest);
+
+        sender.getSentRequests().add(bondRequest);
+        receiver.getReceivedRequests().add(bondRequest);
+
+        userRepository.save(sender);
+        userRepository.save(receiver);
+
+        logger.info("@{} sent bond request to @{}.", sender.getUsername(), receiver.getUsername());
+
         return response;
     }
 
-    @PostMapping("/bond-requests")
-    public BondRequestResponse sendrequest(HttpServletRequest request) {
-
+    @GetMapping("/bond-requests")
+    public BondRequestResponse bondRequests(HttpSession session) throws NotAuthenticatedException, EntityDoesNotExist {
         BondRequestResponse response = new BondRequestResponse();
-        Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         response.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
-        if (userId == null) {
-            response.setStatus("Error");
-            error.put("username", list);
-            response.setError("user not logged in");
-        } else {
-            User user = userRepository.findById(userId).orElseThrow();
-            response.setBondRequests(user.getReceivedRequests());
-        }
+        User sessionUser = sessionService.getSessionUser(session);
+        response.setBondRequests(sessionUser.getReceivedRequests());
+
+        logger.info("Bond requests served receiver @{}.", sessionUser.getUsername());
+
         return response;
     }
 
     @PostMapping("/bond-request-action")
-    public StringResponse bondRequestAction(HttpServletRequest request,
+    public StringResponse bondRequestAction(HttpSession session,
                                             @RequestParam("bond_request_id") @Valid Long bondRequestId,
-                                            @RequestParam("bond_action") @Valid int bondAction) {
+                                            @RequestParam("action") @Valid int bondAction) throws NotAuthenticatedException, InvalidBondActionException, EntityDoesNotExist {
         StringResponse response = new StringResponse();
-        Map<String, List<String>> error = new HashMap<>();
         response.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
+        User sessionUser = sessionService.getSessionUser(session);
+
+        BondRequest bondRequest = bondRepository.findById(bondRequestId).orElseThrow();
+
+        User sender = bondRequest.getSender();
+        User receiver = bondRequest.getReceiver();
+
+        if (!receiver.equals(sessionUser)) {
+            throw new AccessDeniedException("You are not authorized for this.");
         }
 
-        if (userId == null) {
-            response.setStatus("Error");
-            response.setError("user not logged in");
+        // if accept then add to my people
+        if (BondAction.fromValue(bondAction) == BondAction.ACCEPT) {
+            sender.getMyPeople().add(receiver);
+            receiver.getMyPeople().add(sender);
+            userRepository.save(sender);
+            userRepository.save(receiver);
+
+            logger.info("Bond request from @{} accepted by @{}.", sender.getUsername(), receiver.getUsername());
         } else {
-            BondRequest bond = bondRepository.findById(bondRequestId).orElseThrow();
-            if (bondRequestId == 1) {
-                User user = userRepository.findById(userId).orElseThrow();
-                user.getMyPeople().add(bond.getTo());
-                userRepository.save(user);
-            }
-            bond.setBondRequestStatus(BondRequestStatus.fromValue(bondAction));
-            bondRepository.save(bond);
+            logger.info("Bond request from @{} declined by @{}.", sender.getUsername(), receiver.getUsername());
         }
+
+        // bond request object not required anymore
+        bondRepository.delete(bondRequest);
+
         return response;
     }
 }
