@@ -16,7 +16,7 @@ public class SessionService {
     private UserRepository userRepository;
 
     public User getSessionUser(HttpSession session) throws NotAuthenticatedException, EntityDoesNotExist {
-        Long userId = (Long) session.getAttribute("user_id");
+        final Long userId = (Long) session.getAttribute("user_id");
 
         if (userId == null) {
             throw new NotAuthenticatedException("You are not authenticated, please login first.");
