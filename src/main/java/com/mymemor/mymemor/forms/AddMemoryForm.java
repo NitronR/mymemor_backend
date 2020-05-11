@@ -9,8 +9,8 @@ public class AddMemoryForm {
     public String topic;
     @NotBlank
     public String content;
-    public Date date_start;
-    public Date date_end;
+    public Date start_date;
+    public Date end_date;
     public String location;
     public Set<String> photos;
 }

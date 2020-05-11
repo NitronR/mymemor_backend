@@ -122,24 +122,36 @@ public class ApiEndpoint {
         return loginResponse;
     }
 
-    @GetMapping("/memoline/{sortby}")
-    public MemolineResponse memoline(HttpSession session, @PathVariable(value = "sortby") Optional<String> sortby, HttpSession httpSession) throws NotAuthenticatedException, EntityDoesNotExist {
+    // returns session user if any
+    @PostMapping("/get_session_user")
+    public LoginResponse getSessionUser(HttpSession httpSession) {
+        LoginResponse loginResponse = new LoginResponse();
+        try {
+            User sessionUser = sessionService.getSessionUser(httpSession);
+            loginResponse.setUsername(sessionUser.getUsername());
+            loginResponse.setStatus("success");
+        } catch (NotAuthenticatedException | EntityDoesNotExist e) {
+            // not required as we are just checking if there is a session user or not
+            e.printStackTrace();
+            loginResponse.setStatus("no_user");
+        }
+        return loginResponse;
+    }
+
+    @GetMapping("/memoline/{sortBy}/{order}")
+    public MemolineResponse memoline(HttpSession session, @PathVariable(value = "sortBy") Optional<String> sortBy, @PathVariable(value = "order") Optional<String> order, HttpSession httpSession) throws NotAuthenticatedException, EntityDoesNotExist {
         MemolineResponse memolineResponse = new MemolineResponse();
         memolineResponse.setStatus("success");
-        List<Memory> memoline = new ArrayList<>();
-        List<Memory> memories = new ArrayList<>();
+        List<Memory> memoline = new ArrayList<>(), memories = new ArrayList<>();
 
-        String type = "create_time";
-        if (sortby.isPresent()) {
-            type = sortby.get();
-        }
+        String sortByAttr = sortBy.orElse("create_time"),
+                sortOrder = order.orElse("descending");
 
         try {
-            if (type.equals("create_time")) {
-                memories.addAll(memoryRepo.findAllByOrderByCreatedAtDesc());
-
-            } else {
-                memories.addAll(memoryRepo.findAllByOrderByStartDateDesc());
+            if (sortByAttr.equals("create_time")) {
+                memories.addAll(sortOrder.equals("ascending") ? memoryRepo.findAllByOrderByCreatedAt() : memoryRepo.findAllByOrderByCreatedAtDesc());
+            } else if (sortByAttr.equals("memory_time")) {
+                memories.addAll(sortOrder.equals("ascending") ? memoryRepo.findAllByOrderByStartDate() : memoryRepo.findAllByOrderByStartDateDesc());
             }
         } catch (Exception e) {
             memolineResponse.setStatus("error");
@@ -147,7 +159,7 @@ public class ApiEndpoint {
             return memolineResponse;
         }
 
-        User sessionUser = sessionService.getSessionUser(session);
+        final User sessionUser = sessionService.getSessionUser(session);
 
         // TODO improve
         for (Memory memory : memories) {
@@ -158,15 +170,18 @@ public class ApiEndpoint {
         }
         memolineResponse.setMemories(memoline);
 
-        logger.info("Memoline served receiver @{}.", sessionUser.getUsername());
+        logger.info("Memoline served receiver @{}, sort by {}, order {}.", sessionUser.getUsername(), sortByAttr, sortOrder);
 
         return memolineResponse;
     }
 
     @GetMapping("/logout")
-    public StringResponse logout(HttpSession httpSession) {
+    public StringResponse logout(HttpSession httpSession) throws NotAuthenticatedException, EntityDoesNotExist {
         StringResponse stringResponse = new StringResponse();
         stringResponse.setStatus("success");
+
+        User sessionUser = sessionService.getSessionUser(httpSession);
+        logger.info("Logout @{}.", sessionUser.getUsername());
 
         httpSession.removeAttribute("user_id");
 
@@ -185,8 +200,8 @@ public class ApiEndpoint {
         Memory memory = new Memory();
         memory.setTopic(addMemoryForm.topic);
         memory.setContent(addMemoryForm.content);
-        memory.setStartDate(addMemoryForm.date_start);
-        memory.setEndDate(addMemoryForm.date_end);
+        memory.setStartDate(addMemoryForm.start_date);
+        memory.setEndDate(addMemoryForm.end_date);
         memory.setLocation(addMemoryForm.location);
         memory.setPhotos(addMemoryForm.photos);
         memory.setCreator(user);
