@@ -189,13 +189,28 @@ public class ApiEndpoint {
     }
 
     @PostMapping("/add-memory")
-    public FormResponse addMemory(HttpSession session, @RequestBody @Valid AddMemoryForm addMemoryForm) throws NotAuthenticatedException, EntityDoesNotExist {
+    public FormResponse addMemory(HttpSession session, @RequestBody @Valid AddMemoryForm addMemoryForm) throws NotAuthenticatedException, EntityDoesNotExist, InvalidBondActionException {
         FormResponse form = new FormResponse();
         Map<String, List<String>> error = new HashMap<>();
         List<String> list = new ArrayList<>();
         form.setStatus("success");
 
         User user = sessionService.getSessionUser(session);
+
+        // make a set of people associated with this memory
+        Set<User> people = new HashSet<>();
+
+        // from people ids and check if each is in myPeople set of user
+        for (Long personId : addMemoryForm.peopleIds) {
+            User person = userRepository.findById(personId).orElseThrow();
+            if (!user.isMyPeople(person)) {
+                throw new InvalidBondActionException("One or more people are not associated with you.");
+            }
+            people.add(person);
+        }
+
+        // add the user to the memory
+        people.add(user);
 
         Memory memory = new Memory();
         memory.setTopic(addMemoryForm.topic);
@@ -205,7 +220,7 @@ public class ApiEndpoint {
         memory.setLocation(addMemoryForm.location);
         memory.setPhotos(addMemoryForm.photos);
         memory.setCreator(user);
-        memory.getUsers().add(user);
+        memory.setUsers(people);
 
         user.getCreatedMemories().add(memory);
 
