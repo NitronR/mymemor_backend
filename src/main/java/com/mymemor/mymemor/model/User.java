@@ -138,4 +138,9 @@ public class User extends Auditable {
             return this;
         }
     }
+
+    // Checks if given user is in my people set
+    public boolean isMyPeople(User user) {
+        return myPeople.contains(user);
+    }
 }
