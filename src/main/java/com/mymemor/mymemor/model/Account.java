@@ -1,5 +1,6 @@
 package com.mymemor.mymemor.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,6 +38,7 @@ public class Account extends Auditable {
     @Setter
     @NotNull
     @OneToOne
+    @JsonBackReference
     private User user;
 
     private Account(Builder builder) {
