@@ -1,12 +1,15 @@
 package com.mymemor.mymemor.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.util.*;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "memories")
@@ -49,6 +52,7 @@ public class Memory extends Auditable {
     @Getter
     @Setter
     @ManyToMany
+    @JsonManagedReference
     private Set<User> users = new HashSet<>();
 
 }

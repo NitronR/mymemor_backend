@@ -1,6 +1,7 @@
 package com.mymemor.mymemor.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ public class User extends Auditable {
     @Setter
     @NotNull
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private Account account;
 
     @Getter
