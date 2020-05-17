@@ -1,12 +1,16 @@
 package com.mymemor.mymemor.controller;
 
 import com.mymemor.mymemor.Constants;
+import com.mymemor.mymemor.exceptions.EntityDoesNotExist;
+import com.mymemor.mymemor.exceptions.NotAuthenticatedException;
 import com.mymemor.mymemor.model.SearchResult;
 import com.mymemor.mymemor.model.User;
 import com.mymemor.mymemor.repository.AccountRepository;
 import com.mymemor.mymemor.repository.UserRepository;
 import com.mymemor.mymemor.response.SearchResponse;
 import com.mymemor.mymemor.service.SessionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,8 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +38,8 @@ public class SearchController {
     private EntityManager entityManager;
     @Autowired
     private SessionService sessionService;
+
+    Logger logger = LoggerFactory.getLogger(ApiEndpoint.class);
 
     private List<SearchResult> getSearchResultsByIds(List ids) {
         List<SearchResult> searchResults = new ArrayList<>();
@@ -75,7 +81,7 @@ public class SearchController {
 
     private List<SearchResult> searchByNameForSuggestions(EntityManager entityManager, String query) {
         // TODO : Optimise query and Improve get suggestion citeria
-        Query q = entityManager.createNativeQuery("select id sender users where name LIKE ? LIMIT ?");
+        Query q = entityManager.createNativeQuery("select id from users where name LIKE ? LIMIT ?");
         q.setParameter(1, "%" + query + "%");
         q.setParameter(2, Constants.MAX_SUGGESTION_LIST_LENGTH);
         // TODO : Optimise getSearchResultsByIds
@@ -105,24 +111,16 @@ public class SearchController {
         return searchResponse;
     }
 
-    @GetMapping({"/suggestion/{q}", "/suggestion/"})
-    public SearchResponse getSearchSuggestions(HttpServletRequest request,
-                                               @PathVariable(value = "q", required = false) String query) {
+    @GetMapping({"/suggestions/{q}", "/suggestions/"})
+    public SearchResponse getSearchSuggestions(HttpSession session, @PathVariable(value = "q", required = false) String query) throws NotAuthenticatedException, EntityDoesNotExist {
         SearchResponse searchResponse = new SearchResponse();
-        List<String> list = new ArrayList<>();
         searchResponse.setStatus("success");
 
-        Long userId = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-            if (cookie.getName().equals(Constants.COOKIES_NAME)) {
-                userId = Long.parseLong(cookie.getValue());
-            }
-        }
-        if (userId == null) {
-            searchResponse.setStatus("error");
-            searchResponse.setError("User must be logged in ");
-        } else if (StringUtils.isEmpty(query)) {
+        // TODO: use annotation for this
+        // check if user is logged in
+        sessionService.getSessionUser(session);
+
+        if (StringUtils.isEmpty(query)) {
             searchResponse.setStatus("error");
             searchResponse.setError("Query can't be empty");
         } else {
@@ -133,6 +131,9 @@ public class SearchController {
                 searchResponse.setSearchResults(searchByNameForSuggestions(entityManager, query));
             }
         }
+
+        logger.info("Serving search suggestion for query {}.", query);
+
         return searchResponse;
     }
 }
